@@ -18,6 +18,7 @@ window.initBannerModule = function() {
     let isUploading = false;
     let cropperInstance = null;
     let currentFileType = null;
+    let currentMode = 'draw'; // 'draw', 'upload', 'html'
 
     const styles = `
         .drawing-modal .drawing-header h2,
@@ -60,6 +61,13 @@ window.initBannerModule = function() {
         .itd-text-main { font-size: 16px; font-weight: 500; color: #fff; }
         .itd-text-sub { font-size: 12px; color: #ffffff66; }
         
+        .itd-html-container { display: flex; flex-direction: column; gap: 12px; height: 100%; }
+        .itd-html-editor { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+        .itd-html-textarea { flex: 1; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 12px; color: #fff; font-family: 'Courier New', monospace; font-size: 14px; resize: none; outline: none; }
+        .itd-html-textarea:focus { border-color: #606060; }
+        .itd-html-preview { flex: 1; border: 1px solid #333; border-radius: 8px; padding: 12px; background: #fff; overflow: auto; min-height: 200px; }
+        .itd-html-label { color: #ffffffb3; font-size: 14px; font-weight: 500; }
+        
         .itd-hidden { display: none !important; }
         @keyframes itd-spin { to { transform: rotate(360deg); } }
         .itd-spinner { animation: itd-spin 0.8s linear infinite; margin-right: 10px; }
@@ -91,7 +99,7 @@ window.initBannerModule = function() {
 
         const tabs = document.createElement('div');
         tabs.className = 'itd-tab-container';
-        tabs.innerHTML = `<div class="itd-tab active" id="itd-draw">Рисовать</div><div class="itd-tab" id="itd-upload">Изображение</div>`;
+        tabs.innerHTML = `<div class="itd-tab active" id="itd-draw">Рисовать</div><div class="itd-tab" id="itd-upload">Изображение</div><div class="itd-tab" id="itd-html">HTML</div>`;
         
         header.prepend(tabs);
 
@@ -110,9 +118,34 @@ window.initBannerModule = function() {
         `;
         modal.insertBefore(container, footer);
 
+        const htmlContainer = document.createElement('div');
+        htmlContainer.className = 'itd-upload-container itd-hidden';
+        htmlContainer.innerHTML = `
+            <div class="itd-instruction">Вставьте HTML код для баннера. Код будет отображаться как есть.</div>
+            <div class="itd-html-container">
+                <div class="itd-html-editor">
+                    <label class="itd-html-label">HTML код:</label>
+                    <textarea class="itd-html-textarea" id="itd-html-code" placeholder="Вставьте HTML код здесь..."></textarea>
+                </div>
+                <div class="itd-html-editor">
+                    <label class="itd-html-label">Предпросмотр:</label>
+                    <div class="itd-html-preview" id="itd-html-preview"></div>
+                </div>
+            </div>
+        `;
+        modal.insertBefore(htmlContainer, footer);
+
         const zone = container.querySelector('#itd-zone');
         const input = container.querySelector('#itd-input');
         const overlay = container.querySelector('#itd-drop-overlay');
+        const htmlTextarea = htmlContainer.querySelector('#itd-html-code');
+        const htmlPreview = htmlContainer.querySelector('#itd-html-preview');
+
+        // Обработчик для HTML редактора
+        htmlTextarea.addEventListener('input', (e) => {
+            const htmlCode = e.target.value;
+            htmlPreview.innerHTML = htmlCode;
+        });
 
         const handleFileSelect = async (file) => {
             if (!file) return;
@@ -148,18 +181,30 @@ window.initBannerModule = function() {
         zone.onclick = () => { if (!cropperInstance) input.click(); };
         input.onchange = (e) => handleFileSelect(e.target.files[0]);
 
-        const switchMode = (upload) => {
-            tabs.querySelector('#itd-upload').classList.toggle('active', upload);
-            tabs.querySelector('#itd-draw').classList.toggle('active', !upload);
-            container.classList.toggle('itd-hidden', !upload);
-            originalUI.forEach(el => { if (el) el.style.display = upload ? 'none' : ''; });
+        const switchMode = (mode) => {
+            currentMode = mode;
+            const isDraw = mode === 'draw';
+            const isUpload = mode === 'upload';
+            const isHtml = mode === 'html';
+            
+            tabs.querySelector('#itd-draw').classList.toggle('active', isDraw);
+            tabs.querySelector('#itd-upload').classList.toggle('active', isUpload);
+            tabs.querySelector('#itd-html').classList.toggle('active', isHtml);
+            
+            container.classList.toggle('itd-hidden', !isUpload);
+            htmlContainer.classList.toggle('itd-hidden', !isHtml);
+            
+            originalUI.forEach(el => { 
+                if (el) el.style.display = (isUpload || isHtml) ? 'none' : ''; 
+            });
         };
 
-        tabs.querySelector('#itd-draw').onclick = () => switchMode(false);
-        tabs.querySelector('#itd-upload').onclick = () => switchMode(true);
+        tabs.querySelector('#itd-draw').onclick = () => switchMode('draw');
+        tabs.querySelector('#itd-upload').onclick = () => switchMode('upload');
+        tabs.querySelector('#itd-html').onclick = () => switchMode('html');
 
         saveBtn.addEventListener('click', async (e) => {
-            if (!container.classList.contains('itd-hidden')) {
+            if (!container.classList.contains('itd-hidden') || !htmlContainer.classList.contains('itd-hidden')) {
                 e.stopImmediatePropagation();
                 e.preventDefault();
                 if (isUploading) return;
@@ -198,6 +243,63 @@ window.initBannerModule = function() {
                     }
                 };
 
+                // Обработка HTML режима
+                if (currentMode === 'html') {
+                    const htmlCode = htmlTextarea.value.trim();
+                    if (!htmlCode) {
+                        alert('Введите HTML код');
+                        saveBtn.disabled = false;
+                        saveBtn.innerHTML = 'Сохранить';
+                        return;
+                    }
+
+                    // Конвертируем HTML в изображение через canvas
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = htmlCode;
+                    tempDiv.style.width = '1200px';
+                    tempDiv.style.height = '400px';
+                    tempDiv.style.position = 'absolute';
+                    tempDiv.style.left = '-9999px';
+                    tempDiv.style.top = '-9999px';
+                    tempDiv.style.background = '#fff';
+                    document.body.appendChild(tempDiv);
+
+                    // Используем html2canvas если доступен, иначе создаем canvas вручную
+                    if (window.html2canvas) {
+                        html2canvas(tempDiv, { width: 1200, height: 400 }).then(canvas => {
+                            canvas.toBlob(uploadFinal, 'image/jpeg', 0.9);
+                            document.body.removeChild(tempDiv);
+                        });
+                    } else {
+                        // Простой способ: создаем canvas и рисуем содержимое
+                        const canvas = document.createElement('canvas');
+                        canvas.width = 1200;
+                        canvas.height = 400;
+                        const ctx = canvas.getContext('2d');
+                        ctx.fillStyle = '#fff';
+                        ctx.fillRect(0, 0, 1200, 400);
+                        
+                        // Пробуем загрузить html2canvas динамически
+                        const script = document.createElement('script');
+                        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+                        script.onload = () => {
+                            html2canvas(tempDiv, { width: 1200, height: 400 }).then(canvas => {
+                                canvas.toBlob(uploadFinal, 'image/jpeg', 0.9);
+                                document.body.removeChild(tempDiv);
+                            });
+                        };
+                        script.onerror = () => {
+                            alert('Ошибка: библиотека html2canvas не загружена. HTML будет сохранен как текст.');
+                            document.body.removeChild(tempDiv);
+                            saveBtn.disabled = false;
+                            saveBtn.innerHTML = 'Сохранить';
+                        };
+                        document.head.appendChild(script);
+                    }
+                    return;
+                }
+
+                // Обработка режима загрузки изображения
                 if (cropperInstance) {
                     cropperInstance.getCroppedCanvas({ width: 1200 }).toBlob(uploadFinal, 'image/jpeg', 0.9);
                 } else if (input.files[0]) {
