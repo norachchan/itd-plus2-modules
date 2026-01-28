@@ -67,6 +67,9 @@ window.initBannerModule = function() {
         .itd-html-textarea:focus { border-color: #606060; }
         .itd-html-preview { flex: 1; border: 1px solid #333; border-radius: 8px; padding: 12px; background: #fff; overflow: auto; min-height: 200px; }
         .itd-html-label { color: #ffffffb3; font-size: 14px; font-weight: 500; }
+        .itd-html-button { background: #fff; color: #000; border: none; border-radius: 8px; padding: 10px 20px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; align-self: flex-start; }
+        .itd-html-button:hover { background: #e0e0e0; }
+        .itd-html-button:active { transform: scale(0.98); }
         
         .itd-iframe-container { display: flex; flex-direction: column; gap: 12px; height: 100%; }
         .itd-iframe-input-container { display: flex; flex-direction: column; gap: 8px; }
@@ -132,7 +135,10 @@ window.initBannerModule = function() {
             <div class="itd-instruction">Вставьте HTML код для баннера. Код будет отображаться как есть.</div>
             <div class="itd-html-container">
                 <div class="itd-html-editor">
-                    <label class="itd-html-label">HTML код:</label>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                        <label class="itd-html-label">HTML код:</label>
+                        <button class="itd-html-button" id="itd-html-link-btn" type="button">Добавить ссылку</button>
+                    </div>
                     <textarea class="itd-html-textarea" id="itd-html-code" placeholder="Вставьте HTML код здесь..."></textarea>
                 </div>
                 <div class="itd-html-editor">
@@ -167,6 +173,7 @@ window.initBannerModule = function() {
         const overlay = container.querySelector('#itd-drop-overlay');
         const htmlTextarea = htmlContainer.querySelector('#itd-html-code');
         const htmlPreview = htmlContainer.querySelector('#itd-html-preview');
+        const htmlLinkBtn = htmlContainer.querySelector('#itd-html-link-btn');
         const iframeUrlInput = iframeContainer.querySelector('#itd-iframe-url');
         const iframePreview = iframeContainer.querySelector('#itd-iframe-preview-frame');
 
@@ -174,6 +181,26 @@ window.initBannerModule = function() {
         htmlTextarea.addEventListener('input', (e) => {
             const htmlCode = e.target.value;
             htmlPreview.innerHTML = htmlCode;
+        });
+
+        // Обработчик для кнопки добавления ссылки
+        htmlLinkBtn.addEventListener('click', () => {
+            const linkUrl = 'https://итд.com/lxstcxntury';
+            const linkHtml = `<a href="${linkUrl}" target="_blank" style="display: inline-block; padding: 12px 24px; background: #fff; color: #000; text-decoration: none; border-radius: 8px; font-weight: 500; transition: all 0.2s ease;">Перейти на профиль</a>`;
+            
+            const textarea = htmlTextarea;
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+            const before = text.substring(0, start);
+            const after = text.substring(end);
+            
+            textarea.value = before + linkHtml + after;
+            textarea.focus();
+            textarea.setSelectionRange(start + linkHtml.length, start + linkHtml.length);
+            
+            // Обновляем предпросмотр
+            htmlPreview.innerHTML = textarea.value;
         });
 
         // Обработчик для iframe URL
