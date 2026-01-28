@@ -56,6 +56,7 @@ window.initBannerModule = function() {
         .itd-dropzone:hover svg { color: #747474 !important; }
 
         .itd-dropzone img#itd-cropper-target { display: block !important; max-width: 100% !important; max-height: 280px !important; }
+        .itd-dropzone iframe { display: block !important; width: 100% !important; height: 100% !important; border: none !important; position: absolute !important; top: 0 !important; left: 0 !important; }
         .itd-overlay { z-index: 2; text-align: center; pointer-events: none; }
         .itd-text-main { font-size: 16px; font-weight: 500; color: #fff; }
         .itd-text-sub { font-size: 12px; color: #ffffff66; }
@@ -64,9 +65,6 @@ window.initBannerModule = function() {
         @keyframes itd-spin { to { transform: rotate(360deg); } }
         .itd-spinner { animation: itd-spin 0.8s linear infinite; margin-right: 10px; }
         .cropper-container { position: absolute !important; top: 0; left: 0; width: 100% !important; height: 100% !important; }
-        
-        .itd-iframe-container { margin-top: 16px; width: 100%; height: 400px; border-radius: 8px; overflow: hidden; border: 1px solid #333; }
-        .itd-iframe-container iframe { width: 100%; height: 100%; border: none; }
     `;
 
     const injectStyles = () => {
@@ -103,22 +101,21 @@ window.initBannerModule = function() {
         container.innerHTML = `
             <div class="itd-instruction">Настройте область отображения баннера. GIF загружаются без кадрирования.</div>
             <div class="itd-dropzone" id="itd-zone">
-                <div class="itd-overlay" id="itd-drop-overlay">
+                <iframe title="Страница в Википедии о лемурах" src="https://ru.wikipedia.org/wiki/Обыкновенные_лемуры" id="itd-banner-iframe"></iframe>
+                <div class="itd-overlay itd-hidden" id="itd-drop-overlay">
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
                     <div class="itd-text-main">Нажмите, чтобы выбрать изображение</div>
                     <div class="itd-text-sub">JPEG, PNG или GIF, до 20 МБ</div>
                 </div>
             </div>
             <input type="file" id="itd-input" style="display:none" accept="image/*">
-            <div class="itd-iframe-container">
-                <iframe title="Страница в Википедии о лемурах" src="https://ru.wikipedia.org/wiki/Обыкновенные_лемуры"></iframe>
-            </div>
         `;
         modal.insertBefore(container, footer);
 
         const zone = container.querySelector('#itd-zone');
         const input = container.querySelector('#itd-input');
         const overlay = container.querySelector('#itd-drop-overlay');
+        const bannerIframe = container.querySelector('#itd-banner-iframe');
 
         const handleFileSelect = async (file) => {
             if (!file) return;
@@ -129,6 +126,11 @@ window.initBannerModule = function() {
                 if (cropperInstance) cropperInstance.destroy();
                 zone.querySelectorAll('img').forEach(i => i.remove());
                 overlay.classList.add('itd-hidden');
+                
+                // Скрываем iframe баннера при загрузке изображения
+                if (bannerIframe) {
+                    bannerIframe.style.display = 'none';
+                }
                 
                 const img = document.createElement('img');
                 img.id = 'itd-cropper-target';
@@ -151,7 +153,27 @@ window.initBannerModule = function() {
             reader.readAsDataURL(file);
         };
 
-        zone.onclick = () => { if (!cropperInstance) input.click(); };
+        // Функция для сброса и возврата к iframe
+        const resetToIframe = () => {
+            if (cropperInstance) {
+                cropperInstance.destroy();
+                cropperInstance = null;
+            }
+            zone.querySelectorAll('img').forEach(i => i.remove());
+            overlay.classList.add('itd-hidden');
+            if (bannerIframe) {
+                bannerIframe.style.display = 'block';
+            }
+            input.value = '';
+            currentFileType = null;
+        };
+
+        zone.onclick = (e) => {
+            // Если клик не на изображении или cropper, открываем выбор файла
+            if (!cropperInstance && !zone.querySelector('img')) {
+                input.click();
+            }
+        };
         input.onchange = (e) => handleFileSelect(e.target.files[0]);
 
         const switchMode = (upload) => {
