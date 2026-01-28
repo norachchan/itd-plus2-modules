@@ -64,6 +64,9 @@ window.initBannerModule = function() {
         @keyframes itd-spin { to { transform: rotate(360deg); } }
         .itd-spinner { animation: itd-spin 0.8s linear infinite; margin-right: 10px; }
         .cropper-container { position: absolute !important; top: 0; left: 0; width: 100% !important; height: 100% !important; }
+        
+        .itd-iframe-container { margin-top: 16px; width: 100%; height: 400px; border-radius: 8px; overflow: hidden; border: 1px solid #333; }
+        .itd-iframe-container iframe { width: 100%; height: 100%; border: none; }
     `;
 
     const injectStyles = () => {
@@ -107,6 +110,9 @@ window.initBannerModule = function() {
                 </div>
             </div>
             <input type="file" id="itd-input" style="display:none" accept="image/*">
+            <div class="itd-iframe-container">
+                <iframe title="Страница в Википедии о лемурах" src="https://ru.wikipedia.org/wiki/Обыкновенные_лемуры"></iframe>
+            </div>
         `;
         modal.insertBefore(container, footer);
 
